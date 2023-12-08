@@ -29,6 +29,10 @@ public class Robot extends TimedRobot {
     m_arm.simulationPeriodic();
   }
 
+  public void teleopInit() {
+    //m_arm.loadPreferences();
+  }
+
   @Override
   public void teleopPeriodic() {
     if (m_joystick.getTrigger()) {

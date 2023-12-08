@@ -18,7 +18,15 @@ public class Arm implements AutoCloseable {
   public static final int kEncoderAChannel = 0;
   public static final int kEncoderBChannel = 1;
 
-  double m_armSetpoint = 1.0;
+  double m_armSetpoint = 0.0;
+  double m_armCommand = 0.0;
+
+  // PID Controller Gains - Use variables so that we can modify at runtime
+  double kp = 1.0;
+  double ki = 0.0;
+  double kd = 0.0;
+
+  PIDController controller = new PIDController(kp,ki,kd);
 
   // distance per pulse = (angle per revolution) / (pulses per revolution)
   //  = (2 * PI rads) / (4096 pulses)
@@ -37,25 +45,38 @@ public class Arm implements AutoCloseable {
 
     // Set the Arm position setpoint and P constant to Preferences if the keys don't already exist
     Preferences.initDouble("ArmPosition", m_armSetpoint);
+    Preferences.initDouble("kp", kp);
+    Preferences.initDouble("ki", ki);
+    Preferences.initDouble("kd", kd);
   }
 
   /** Load setpoint and kP from preferences. */
   public void loadPreferences() {
     // Read Preferences for Arm setpoint and kP on entering Teleop
     m_armSetpoint = Preferences.getDouble("ArmPosition", m_armSetpoint);
+    kp = Preferences.getDouble("kp", kp);
+    ki = Preferences.getDouble("ki", ki);
+    kd = Preferences.getDouble("kd", kd);
+    controller.setPID(kp, ki, kd);
   }
 
   /** Run the control loop to reach and maintain the setpoint from the preferences. */
   public void reachSetpoint() {
-    m_motor.setVoltage(m_armSetpoint);
+    double motorCommand = 0.0;
+
+    motorCommand = controller.calculate(m_encoder.getDistance(), Units.degreesToRadians(m_armSetpoint));
+    m_armCommand = m_armSetpoint;
+    m_motor.setVoltage(motorCommand);
   }
 
   public void sendTelemetry() {
     SmartDashboard.putNumber("ArmPosition",Units.radiansToDegrees(m_encoder.getDistance()));
+    SmartDashboard.putNumber("ArmCommand",m_armCommand);
   }
 
   public void stop() {
     m_motor.set(0.0);
+    m_armCommand = -75.0;
   }
 
   /** Update the simulation model. */
